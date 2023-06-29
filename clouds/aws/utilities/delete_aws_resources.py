@@ -1,3 +1,4 @@
+import multiprocessing
 import re
 import shlex
 import shutil
@@ -81,7 +82,7 @@ def delete_roles(region_name):
     for role in roles_dict["Roles"]:
         role_name = role["RoleName"]
         if not re.search(
-            r"ManagedOpenShift|AWS|OrganizationAccountAccessRole|pco-|RedHatIT",
+            r"ManagedOpenShift|AWS|OrganizationAccountAccessRole|pco-|RedHatIT|RH-",
             role_name,
         ):
             # Need to iterate over both list_attached_role_policies and list_role_policies
@@ -170,44 +171,60 @@ def main(aws_regions, all_aws_regions):
 
     set_and_verify_aws_credentials()
 
-    rerun_cleanup_list = clean_aws_resources(aws_regions=_aws_regions)
-    while rerun_cleanup_list:
-        rerun_cleanup_list = clean_aws_resources(aws_regions=rerun_cleanup_list)
+    clean_aws_resources(aws_regions=_aws_regions)
 
 
 def clean_aws_resources(aws_regions):
+    rerun_cleanup_regions_list = []
+    jobs = []
+    cleanup_queue = multiprocessing.Queue()
+
+    for region in aws_regions:
+        job = multiprocessing.Process(
+            name=f"--- Clean up {region} ---",
+            target=clean_aws_region,
+            kwargs={"aws_region": region, "queue": cleanup_queue},
+        )
+        jobs.append(job)
+        job.start()
+
+    while not cleanup_queue.empty():
+        rerun_cleanup_regions_list.append(cleanup_queue.get())
+
+    for _job in jobs:
+        _job.join()
+
+    if rerun_cleanup_regions_list:
+        clean_aws_resources(aws_regions=rerun_cleanup_regions_list)
+
+
+def clean_aws_region(aws_region, queue):
     """Deletes AWS resources.
 
     Deletes open id connector providers, instance profiles and roles.
     (calls rds instances and vpc peerings connections - currently to only log data).
     Runs `cloud-nuke` utility - https://github.com/gruntwork-io/cloud-nuke
     Deletes S2 buckets.
+    Adds aws_region to queue in case additional cleanup is needed.
 
     Args:
-        aws_regions (list): list of AWS region names
+        aws_region (str): AWS region name
+        queue (Queue): multiprocessing queue to pass result
 
-    Returns:
-        list: list of cleanup functions return values
     """
-    rerun_cleanup_regions_list = []
+    LOGGER.info(f"Deleting resources in region {aws_region}")
+    rerun_results = [
+        delete_rds_instances(region_name=aws_region),
+        delete_vpc_peering_connections(region_name=aws_region),
+        delete_open_id_connect_providers(region_name=aws_region),
+        delete_instance_profiles(region_name=aws_region),
+        delete_roles(region_name=aws_region),
+    ]
+    run_command(command=shlex.split(f"cloud-nuke aws --region {aws_region} --force"))
+    rerun_results.append(delete_buckets(region_name=aws_region))
 
-    for region_name in aws_regions:
-        LOGGER.info(f"Deleting resources in region {region_name}")
-        rerun_results = [
-            delete_rds_instances(region_name=region_name),
-            delete_vpc_peering_connections(region_name=region_name),
-            delete_open_id_connect_providers(region_name=region_name),
-            delete_instance_profiles(region_name=region_name),
-            delete_roles(region_name=region_name),
-        ]
-        run_command(
-            command=shlex.split(f"cloud-nuke aws --region {region_name} --force")
-        )
-        rerun_results.append(delete_buckets(region_name=region_name))
-        if any(rerun_results):
-            rerun_cleanup_regions_list.append(region_name)
-
-    return rerun_cleanup_regions_list
+    if any(rerun_results):
+        queue.put(aws_region)
 
 
 if __name__ == "__main__":
