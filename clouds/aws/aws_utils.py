@@ -5,6 +5,8 @@ from http import HTTPStatus
 
 from simple_logger.logger import get_logger
 
+from clouds.aws.session_clients import ec2_client
+
 LOGGER = get_logger(name=__name__)
 AWS_CONFIG_FILE = os.environ.get("AWS_CONFIG_FILE", os.path.expanduser("~/.aws/config"))
 AWS_CREDENTIALS_FILE = os.environ.get(
@@ -68,6 +70,7 @@ def set_and_verify_aws_credentials():
         vars_list=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
         file_path=AWS_CREDENTIALS_FILE,
     )
+    ec2_client().describe_regions()
 
 
 def set_and_verify_aws_config():
