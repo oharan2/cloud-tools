@@ -169,7 +169,7 @@ def main(aws_regions, all_aws_regions):
         )
         raise click.Abort()
 
-    set_and_verify_aws_credentials()
+    set_and_verify_aws_credentials(region_name=_aws_regions[0])
 
     clean_aws_resources(aws_regions=_aws_regions)
 

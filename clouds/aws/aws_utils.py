@@ -65,12 +65,13 @@ def set_and_verify_existing_config_in_env_vars_or_file(
         raise AWSConfigurationError()
 
 
-def set_and_verify_aws_credentials():
+def set_and_verify_aws_credentials(region_name=None):
     set_and_verify_existing_config_in_env_vars_or_file(
         vars_list=["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
         file_path=AWS_CREDENTIALS_FILE,
     )
-    ec2_client().describe_regions()
+
+    ec2_client(region_name=region_name).describe_regions()
 
 
 def set_and_verify_aws_config():
