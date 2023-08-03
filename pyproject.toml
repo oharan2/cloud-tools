@@ -18,12 +18,19 @@ profile = "black"
 
 [tool.poetry]
 name = "redhat-qe-cloud-tools"
-version = "1.0.10"
+version = "0.0.0"
 description = "Python utilities to manage cloud services, such as AWS."
-authors = ["Meni Yakove", "Ruth Netser"]
+authors = ["Meni Yakove <myakove@gmail.com>", "Ruth Netser <rnetser@gmail.com>"]
 readme = "README.md"
 repository = "https://github.com/RedHatQE/cloud-tools"
 packages = [{include = "clouds"}]
+license = "Apache-2.0"
+homepage = "https://github.com/RedHatQE/cloud-tools"
+documentation = "https://github.com/RedHatQE/cloud-tools/blob/main/README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -34,11 +41,21 @@ python-simple-logger = "^1.0.5"
 click = "^8.1.4"
 configparser = "^6.0.0"
 
+[tool.poetry.urls]
+Download = "https://pypi.org/project/redhat-qe-cloud-tools/"
+"Bug Tracker" = "https://github.com/RedHatQE/cloud-tools/issues"
 
 [tool.poetry.dev-dependencies]
+ipdb = "^0.13.13"
 ipython = "*"
-ipdb = "*"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.poetry-dynamic-versioning.substitution]
+files = ["VERSION"]
+
+[tool.poetry-dynamic-versioning]
+enable = true
+pattern = "((?P<epoch>\\d+)!)?(?P<base>\\d+(\\.\\d+)*)"
