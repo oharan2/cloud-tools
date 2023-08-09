@@ -13,6 +13,8 @@ fcn_exclude_functions =
     logging,
     LOGGER,
     parser,
+    click,
+    put,
 
 enable-extensions =
     FCN,

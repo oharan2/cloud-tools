@@ -1,4 +1,7 @@
 {
+  "npm": {
+    "publish": false
+  },
   "git": {
     "requireCleanWorkingDir": true,
     "requireBranch": false,
@@ -36,16 +39,9 @@
     "web": false
   },
   "plugins": {
-    "@j-ulrich/release-it-regex-bumper": {
-      "out": [
-        {
-          "files": [
-            "pyproject.toml"
-          ],
-          "search": "version = \"\\d+\\.\\d+\\.\\d+\"",
-          "replace": "version = \"{{version}}\""
-        }
-      ]
+    "@release-it/bumper": {
+      "in": "VERSION",
+      "out": "VERSION"
     }
   }
 }

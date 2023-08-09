@@ -1,15 +1,14 @@
-import json
-import logging
 import os
 import re
-import sys
-from http import HTTPStatus
 from typing import Union
 
 import boto3
 import click
+from simple_logger.logger import get_logger
 
-LOGGER = logging.getLogger(__name__)
+from clouds.aws.aws_utils import delete_all_objects_from_s3_folder, delete_bucket
+
+LOGGER = get_logger(name=__name__)
 
 
 def delete_velero_cluster_buckets(cluster, boto_client) -> None:
@@ -45,33 +44,6 @@ def delete_velero_cluster_buckets(cluster, boto_client) -> None:
             return
 
     LOGGER.info("No buckets deleted")
-
-
-def delete_bucket(bucket_name: str, boto_client) -> None:
-    """
-    Delete velero bucket
-
-    Args:
-        bucket_name: the bucket name
-        boto_client: AWS client
-    """
-    LOGGER.info(f"Delete bucket {bucket_name}")
-    response = boto_client.delete_bucket(Bucket=bucket_name)
-
-    response_http_status_code = response["ResponseMetadata"]["HTTPStatusCode"]
-    if response_http_status_code == HTTPStatus.NO_CONTENT:
-        LOGGER.info(f"Cluster bucket '{bucket_name}' deleted successfully")
-        return
-
-    elif response_http_status_code == HTTPStatus.NOT_FOUND:
-        LOGGER.info(f"Bucket '{bucket_name}' not found")
-        return
-
-    LOGGER.error(
-        f"Bucket {bucket_name} not deleted",
-        json.dumps(response, defualt=str, indent=4),
-    )
-    sys.exit(1)
 
 
 def get_velero_buckets(boto_client) -> list:
@@ -151,43 +123,6 @@ def verify_cluster_matches_velero_infrastructure_name(
         return True
 
     return False
-
-
-def delete_all_objects_from_s3_folder(bucket_name: str, boto_client) -> None:
-    """
-    Deletes all files in a folder of an S3 bucket
-
-    Args:
-        bucket_name: The bucket name
-        boto_client: AWS client
-    """
-
-    list_obj_response = boto_client.list_objects_v2(Bucket=bucket_name)
-
-    #  Sometimes there maybe no contents -- no objects
-    files_in_folder = list_obj_response.get("Contents")
-    if not files_in_folder:
-        LOGGER.info(f"No objects to be deleted for {bucket_name}")
-        return
-
-    files_to_delete = [{"Key": file["Key"]} for file in files_in_folder]
-    delete_response = boto_client.delete_objects(
-        Bucket=bucket_name,
-        Delete={"Objects": files_to_delete, "Quiet": True},
-    )
-
-    delete_response_http_status_code = delete_response["ResponseMetadata"][
-        "HTTPStatusCode"
-    ]
-    if delete_response_http_status_code == HTTPStatus.OK:
-        LOGGER.info("Objects deleted successfully")
-        return
-    else:
-        LOGGER.error(
-            "Objects not deleted:\n:"
-            f"{json.dumps(delete_response, default=str, indent=4)}",
-        )
-        sys.exit(1)
 
 
 @click.command()

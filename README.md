@@ -16,7 +16,7 @@ poetry install
 ```
 
 ## Docs
-- [AWS readme](aws/README.md)
+- [AWS Readme](clouds/aws/README.md)
 
 ## Release new version
 ### requirements:
@@ -25,7 +25,7 @@ poetry install
 export GITHUB_TOKEN=<your_github_token>
 ```
 * [release-it](https://github.com/release-it/release-it)
-Run the following once:
+Run the following once (execute outside repository dir for example `~/`):
 ```bash
 sudo npm install --global release-it
 npm install --save-dev @j-ulrich/release-it-regex-bumper
