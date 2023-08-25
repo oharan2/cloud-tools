@@ -165,7 +165,8 @@ def main(aws_regions, all_aws_regions):
 
     if not shutil.which("cloud-nuke"):
         click.echo(
-            "cloud-nuke is not installed; install from https://github.com/gruntwork-io/cloud-nuke"
+            "cloud-nuke is not installed; install from"
+            " https://github.com/gruntwork-io/cloud-nuke"
         )
         raise click.Abort()
 

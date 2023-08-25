@@ -45,7 +45,8 @@ def set_and_verify_existing_config_in_env_vars_or_file(
             continue
 
         LOGGER.info(
-            f"Variable {var} is not set as environment variables, checking in config file."
+            f"Variable {var} is not set as environment variables, checking in config"
+            " file."
         )
         try:
             var_in_file = var.lower()
