@@ -485,12 +485,12 @@ six = "*"
 
 [[package]]
 name = "openshift-python-utilities"
-version = "5.0.1"
+version = "5.0.2"
 description = "A utilities repository for https://github.com/RedHatQE/openshift-python-wrapper"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "openshift_python_utilities-5.0.1.tar.gz", hash = "sha256:768b0cd539b00c79a0b91fcb31cb5fc498a05ba2d233b19a34637753287de20b"},
+    {file = "openshift_python_utilities-5.0.2.tar.gz", hash = "sha256:72b0580956f59ac7bd7bcd2d4dcd3d6431b6ee64fc5fb02ef3163c3a2de71944"},
 ]
 
 [package.dependencies]
