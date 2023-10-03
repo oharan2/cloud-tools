@@ -29,7 +29,7 @@ def delete_rds_instances(region_name):
     ]
     for db_instance_identifier in db_instances:
         LOGGER.warning(f"DB instance identifier: {db_instance_identifier}")
-        # TODO: once we have the contents of db_instance_identifier, update code to delete it
+        # TODO: once we have the contents of db_instance_identifier, update code to delete it (add dry_run support)
         # aws rds modify-db-instance --no-deletion-protection --db-instance-identifier "${rds}"
 
 
@@ -38,22 +38,25 @@ def delete_vpc_peering_connections(region_name):
         "VpcPeeringConnections"
     ]:
         LOGGER.warning(f"VPC peering connection: {conn}")
-        # TODO: once we have the contents of conn, update code to delete it
+        # TODO: once we have the contents of conn, update code to delete it (add dry_run support)
         # aws ec2 delete-vpc-peering-connection --vpc-peering-connection-id "${pc}"
 
 
-def delete_open_id_connect_providers(region_name):
+def delete_open_id_connect_providers(region_name, dry_run=True):
     LOGGER.info("Executing delete_open_id_connect_provider")
     _iam_client = iam_client(region_name=region_name)
     for conn in _iam_client.list_open_id_connect_providers()[
         "OpenIDConnectProviderList"
     ]:
         conn_name = conn["Arn"]
-        LOGGER.info(f"Delete open id connection provider {conn_name}")
-        _iam_client.delete_open_id_connect_provider(OpenIDConnectProviderArn=conn_name)
+        if dry_run:
+            LOGGER.warning(f"Open id connection provider: {conn_name}")
+        else:
+            LOGGER.info(f"Delete open id connection provider {conn_name}")
+            _iam_client.delete_open_id_connect_provider(OpenIDConnectProviderArn=conn_name)
 
 
-def delete_instance_profiles(region_name):
+def delete_instance_profiles(region_name, dry_run=True):
     LOGGER.info("Executing delete_instance_profiles")
     _iam_client = iam_client(region_name=region_name)
     instance_profiles_dict = _iam_client.list_instance_profiles(MaxItems=MAX_ITEMS)
@@ -63,17 +66,24 @@ def delete_instance_profiles(region_name):
             "InstanceProfile"
         ]["Roles"]:
             role_name = role["RoleName"]
-            LOGGER.info(f"Remove role {role_name} from instance profile {profile_name}")
-            _iam_client.remove_role_from_instance_profile(
-                InstanceProfileName=profile_name, RoleName=role_name
-            )
-        LOGGER.info(f"Delete Profile {profile_name}")
-        _iam_client.delete_instance_profile(InstanceProfileName=profile_name)
+            if dry_run:
+                LOGGER.warning(f"Role: {role_name}, instance profile: {profile_name}")
+            else:
+                LOGGER.info(f"Remove role {role_name} from instance profile {profile_name}")
+                _iam_client.remove_role_from_instance_profile(
+                    InstanceProfileName=profile_name, RoleName=role_name
+                )
+
+        if dry_run:
+            LOGGER.warning(f"Profile: {profile_name}")
+        else:
+            LOGGER.info(f"Delete Profile {profile_name}")
+            _iam_client.delete_instance_profile(InstanceProfileName=profile_name)
 
     return instance_profiles_dict["IsTruncated"]
 
 
-def delete_roles(region_name):
+def delete_roles(region_name, dry_run=True):
     LOGGER.info("Executing delete_roles")
     _iam_client = iam_client(region_name=region_name)
     roles_dict = _iam_client.list_roles(MaxItems=MAX_ITEMS)
@@ -123,7 +133,7 @@ def delete_roles(region_name):
     )
 
 
-def delete_buckets(region_name):
+def delete_buckets(region_name, dry_run=True):
     LOGGER.info("Executing delete_buckets")
     _s3_client = s3_client(region_name=region_name)
     buckets_dict = _s3_client.list_buckets(MaxItems=MAX_ITEMS)
@@ -154,7 +164,15 @@ def delete_buckets(region_name):
         """,
     is_flag=True,
 )
-def main(aws_regions, all_aws_regions):
+@click.option(
+    "--dry-run",
+    help="""
+        \b
+        Simulate cleanup without taking any action.
+        """,
+    is_flag=True,
+)
+def main(aws_regions, all_aws_regions, dry_run=True):
     if all_aws_regions:
         _aws_regions = aws_region_names()
     elif aws_regions:
@@ -172,10 +190,10 @@ def main(aws_regions, all_aws_regions):
 
     set_and_verify_aws_credentials(region_name=_aws_regions[0])
 
-    clean_aws_resources(aws_regions=_aws_regions)
+    clean_aws_resources(aws_regions=_aws_regions, dry_run=dry_run)
 
 
-def clean_aws_resources(aws_regions):
+def clean_aws_resources(aws_regions, dry_run=True):
     rerun_cleanup_regions_list = []
     jobs = []
     cleanup_queue = multiprocessing.Queue()
@@ -184,7 +202,7 @@ def clean_aws_resources(aws_regions):
         job = multiprocessing.Process(
             name=f"--- Clean up {region} ---",
             target=clean_aws_region,
-            kwargs={"aws_region": region, "queue": cleanup_queue},
+            kwargs={"aws_region": region, "queue": cleanup_queue, "dry_run": dry_run},
         )
         jobs.append(job)
         job.start()
@@ -199,7 +217,7 @@ def clean_aws_resources(aws_regions):
         clean_aws_resources(aws_regions=rerun_cleanup_regions_list)
 
 
-def clean_aws_region(aws_region, queue):
+def clean_aws_region(aws_region, queue, dry_run):
     """Deletes AWS resources.
 
     Deletes open id connector providers, instance profiles and roles.
@@ -213,16 +231,20 @@ def clean_aws_region(aws_region, queue):
         queue (Queue): multiprocessing queue to pass result
 
     """
-    LOGGER.info(f"Deleting resources in region {aws_region}")
+    if dry_run:
+        LOGGER.warning(f"Running in dry run mode, simulating clearing resources in region {aws_region}")
+    else:
+        LOGGER.info(f"Deleting resources in region {aws_region}")
     rerun_results = [
         delete_rds_instances(region_name=aws_region),
         delete_vpc_peering_connections(region_name=aws_region),
-        delete_open_id_connect_providers(region_name=aws_region),
-        delete_instance_profiles(region_name=aws_region),
-        delete_roles(region_name=aws_region),
+        delete_open_id_connect_providers(region_name=aws_region, dry_run=dry_run),
+        delete_instance_profiles(region_name=aws_region, dry_run=dry_run),
+        delete_roles(region_name=aws_region, dry_run=dry_run),
     ]
-    run_command(command=shlex.split(f"cloud-nuke aws --region {aws_region} --force"))
-    rerun_results.append(delete_buckets(region_name=aws_region))
+    if not dry_run:
+        run_command(command=shlex.split(f"cloud-nuke aws --region {aws_region} --force"))
+    rerun_results.append(delete_buckets(region_name=aws_region, dry_run=dry_run))
 
     if any(rerun_results):
         queue.put(aws_region)
